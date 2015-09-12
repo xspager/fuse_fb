@@ -6,6 +6,7 @@
 #include <linux/fb.h>
 
 #include <stdio.h>
+#include <string.h>
 
 #define LOG(...) do { fprintf(stderr, __VA_ARGS__); puts(""); } while (0)
 
@@ -28,7 +29,7 @@ static void
 cusetest_write(fuse_req_t req, const char *buf, size_t size,
 	       off_t off, struct fuse_file_info *fi)
 {
-    LOG("write (%u bytes)", size);
+    LOG("write (%zu bytes)", size);
     fuse_reply_write(req, size);
 }
 
@@ -37,23 +38,24 @@ cusetest_ioctl(fuse_req_t req, int cmd, void *arg,
 	       struct fuse_file_info *fi, unsigned flags,
 	       const void *in_buf, size_t in_bufsz, size_t out_bufsz)
 {
-    struct fb_var_screeninfo *fb_var;
-    // fb_var.xres_virtual = 480;
-    // fb_var.xres_virtual = 640;
-    // fb_var.bits_per_pixel = 1;
-    // struct iovec iov = { &fb_var, sizeof(struct fb_var_screeninfo) }; 
 
-
-    LOG("ioctl %d: insize: %u outsize: %u", cmd, in_bufsz, out_bufsz);
+    LOG("ioctl %d: insize: %zu outsize: %zu", cmd, in_bufsz, out_bufsz);
     switch (cmd) {
     case FBIOGET_FSCREENINFO:
 	LOG("Yay!");
 	fuse_reply_ioctl(req, 0, NULL, 0);
 	break;
     case FBIOGET_VSCREENINFO:
-	fb_var = (struct fb_var_screeninfo *) arg;
-	fb_var->xres_virtual = 800;
-	fuse_reply_ioctl(req, 0, arg, sizeof(struct fb_var_screeninfo));
+	if (in_bufsz == 0){
+		struct iovec iov = {arg, sizeof(struct fb_var_screeninfo)};
+		fuse_reply_ioctl_retry(req, &iov, 1, &iov, 1);
+	} else { 
+    		struct fb_var_screeninfo fb_var;
+		fb_var.xres_virtual = 800;
+    		fb_var.yres_virtual = 640;
+    		fb_var.bits_per_pixel = 1;
+		fuse_reply_ioctl(req, 0, &fb_var, sizeof(struct fb_var_screeninfo));
+	}
 	break;
     case 23:
 	if (in_bufsz == 0) {
@@ -89,17 +91,14 @@ main(int argc, char **argv)
 {
     // -f: run in foreground, -d: debug ouput
     // Compile official example and use -h
-    const char     *cusearg[] = { "test", "-f", "-d", "-s" };	// -s for
-    // single
-    // thread
-    // const char* devarg[] = {"DEVNAME=cusetest" };
-    const char     *devarg[] = { "DEVNAME=fbe_buffer" };
+    const char     *cusearg[] = { "test", "-f" };	// -d for debug -s for single thread
+    const char     *devarg[] = { "DEVNAME=fb_fuse_buffer" };
     struct cuse_info ci;
     memset(&ci, 0x00, sizeof(ci));
     ci.flags = CUSE_UNRESTRICTED_IOCTL;
     ci.dev_info_argc = 1;
     ci.dev_info_argv = devarg;
 
-    return cuse_lowlevel_main(4, (char **) &cusearg, &ci, &cusetest_clop,
+    return cuse_lowlevel_main(2, (char **) &cusearg, &ci, &cusetest_clop,
 			      NULL);
 }

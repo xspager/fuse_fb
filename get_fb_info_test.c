@@ -35,6 +35,7 @@ int main(int argc, char** argv)
 	}
 
 
+	var.xres_virtual = 10;
 	res = ioctl(fb, FBIOGET_VSCREENINFO, &var);
 	if (res != 0) {
 		perror("VSCREENINFO failed");
