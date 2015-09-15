@@ -42,8 +42,15 @@ cusetest_ioctl(fuse_req_t req, int cmd, void *arg,
     LOG("ioctl %d: insize: %zu outsize: %zu", cmd, in_bufsz, out_bufsz);
     switch (cmd) {
     case FBIOGET_FSCREENINFO:
-	LOG("Yay!");
-	fuse_reply_ioctl(req, 0, NULL, 0);
+	if (in_bufsz == 0){
+		struct iovec iov = {arg, sizeof(struct fb_fix_screeninfo)};
+		fuse_reply_ioctl_retry(req, &iov, 1, &iov, 1);
+
+	} else {
+		struct fb_fix_screeninfo fb_fix;
+		strcpy(fb_fix.id, "Fuse FB");
+		fuse_reply_ioctl(req, 0, &fb_fix, sizeof(struct fb_fix_screeninfo));
+	}
 	break;
     case FBIOGET_VSCREENINFO:
 	if (in_bufsz == 0){
@@ -91,7 +98,7 @@ main(int argc, char **argv)
 {
     // -f: run in foreground, -d: debug ouput
     // Compile official example and use -h
-    const char     *cusearg[] = { "test", "-f" };	// -d for debug -s for single thread
+    const char     *cusearg[] = { "test", "-f", "-d" };	// -d for debug -s for single thread
     const char     *devarg[] = { "DEVNAME=fb_fuse_buffer" };
     struct cuse_info ci;
     memset(&ci, 0x00, sizeof(ci));
@@ -99,6 +106,6 @@ main(int argc, char **argv)
     ci.dev_info_argc = 1;
     ci.dev_info_argv = devarg;
 
-    return cuse_lowlevel_main(2, (char **) &cusearg, &ci, &cusetest_clop,
+    return cuse_lowlevel_main(3, (char **) &cusearg, &ci, &cusetest_clop,
 			      NULL);
 }

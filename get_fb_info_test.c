@@ -43,6 +43,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
+	printf("Framebuffer Id is: %s\n", fix.id);
 	printf("size %dx%d @ %d bits per pixel\n", var.xres_virtual, var.yres_virtual, var.bits_per_pixel);
 }
 
